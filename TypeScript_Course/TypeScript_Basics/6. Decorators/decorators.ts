@@ -83,10 +83,10 @@ class Product{
         else throw new Error('Price should be Positive...');
     }
 
-    constructor(t: string, p: number)
+    constructor(t: string, pr: number)
     {
         this.title = t;
-        this._price = p;
+        this._price = pr;
     }
 
     @Log3
@@ -107,7 +107,7 @@ function Autobind(_1: any, _2: string, descriptor: PropertyDescriptor)
     const adjDescriptor: PropertyDescriptor = {
         configurable: true,
         enumerable: false,
-        get()
+        get(): any
         {
             const boundFn = originalMethod.bind(this);
             return boundFn;
@@ -130,3 +130,91 @@ const p = new Printer();
 const button = document.querySelector('button')!;
 button.addEventListener('click', p.showMessage);
 
+
+// Decorator for Validation =================================================
+console.log('\n\nDecorator for Validation...!!!');
+
+interface ValidatorConfig
+{
+    [property: string]:{
+        [validatableProp: string]: string[]  // ['require', 'positive']
+    }
+}
+
+const registeredValidators: ValidatorConfig = {};
+
+function Require(target: any, propName: string)
+{
+    registeredValidators[target.constructor.name] = {
+        ...registeredValidators[target.constructor.name],
+        [propName]: [...(registeredValidators[target.constructor.name]?.[propName] ?? []), 'require']
+    };
+}
+
+function PositiveVal(target: any, propName: string)
+{
+    registeredValidators[target.constructor.name] = {
+        ...registeredValidators[target.constructor.name],
+        [propName]: [...(registeredValidators[target.constructor.name]?.[propName] ?? []), 'positive']
+    };
+}
+
+function Validate(obj: any)
+{
+    const objValidatorConfig = registeredValidators[obj.constructor.name];
+    if(!objValidatorConfig)
+    {
+        return true;
+    }
+
+    let isValid = true;
+    for(const prop in objValidatorConfig)
+    {
+        for(const validator of objValidatorConfig[prop])
+        {
+            switch(validator)
+            {
+                case 'require':
+                    isValid = isValid && !!obj[prop];
+                    break;
+                case 'positive':
+                    isValid = isValid && obj[prop]>0;
+                    break;
+            }
+        }
+    }
+    return isValid;
+}
+
+class Course{
+
+    @Require
+    title: string;
+
+    @PositiveVal
+    price: number;
+
+    constructor(t: string, p: number)
+    {
+        this.title = t;
+        this.price = p;
+    }
+}
+
+const courseForm = document.querySelector('form')!;
+courseForm.addEventListener('submit', event => {
+    event.preventDefault();
+    const titleEL = <HTMLInputElement>document.getElementById('title');
+    const priceEl = <HTMLInputElement>document.getElementById('price');
+
+    const title = titleEL.value;
+    const price = +priceEl.value;
+
+    const createCourse = new Course(title, price);
+    if(!Validate(createCourse)) 
+    {
+        alert('Invalid Input, Please try again...');
+        return;
+    }
+    console.log(createCourse);
+});
